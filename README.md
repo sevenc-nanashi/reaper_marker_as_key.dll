@@ -1,3 +1,5 @@
+[English](./README.en.md) | **日本語**
+
 # reaper_marker_as_key.dll
 
 マーカー名の `[key=C#:major]` などのタグを読み、開いているREAPERプロジェクトの調号へ反映するMOD。
@@ -18,7 +20,8 @@
 アクション `reaper_marker_as_key.dll: Open configuration` でメモ帳から編集できます。
 
 - スケールは音階のビットマスク、別のスケール名へのエイリアス、あるいは `.reascale` ファイルで指定します。
-- 文字列は同じ `[scales]` 内の名前を参照します。エイリアスの連鎖にも対応し、未定義の名前や循環参照はエラーになります。
+- ビットマスクは12bitの整数で、LSBが主音、MSBが第7音に対応します。例えばメジャースケールは `0b101010110101` です。
+- 文字列は同じ `[scales]` 内の名前を参照します。
 - `{ path = "...", scale = "..." }` の形式で `.reascale` ファイルを指定できます。
 - キーがそのままスケール名として使われます。
 - デフォルトは[./reaper_marker_as_key.toml](./reaper_marker_as_key.toml)を参照してください。
@@ -33,4 +36,4 @@ another = { path = "scales/custom.reascale", scale = "Dorian" }
 
 ## ライセンス
 
-MIT License
+このMODはMITライセンスの下で公開されています。
