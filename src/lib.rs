@@ -93,7 +93,7 @@ impl Api {
                 break;
             }
             anyhow::ensure!(
-                position.is_finite() && position <= upper_bound,
+                position.is_finite() && position.total_cmp(&upper_bound).is_le(),
                 "Could not enumerate existing key signatures."
             );
             changes.push(Change {
@@ -101,7 +101,12 @@ impl Api {
                 key: None,
                 previous: Some(previous),
             });
-            position = position.next_down();
+            // REAPER may flush subnormal values to zero, so 0.0.next_down() cannot advance.
+            position = if position == 0.0 {
+                -f64::MIN_POSITIVE
+            } else {
+                position.next_down()
+            };
         }
         for (time, key) in markers {
             changes.push(Change {
