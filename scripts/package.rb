@@ -21,6 +21,13 @@ abort 'git show failed' unless status.success?
 timestamp = Time.iso8601(timestamp.strip).utc.iso8601
 download = "https://github.com/#{repository}/releases/download/#{tag}"
 
+description = <<~RTF
+  {\\rtf1\\ansi
+  A mod to convert REAPER markers to Key Signatures, which allows you to change the key snap configuration automatically when you move the edit cursor to a different marker.\\par
+  Refer to the GitHub repository for more information: https://github.com/#{repository}
+  }
+RTF
+
 # shortcut: publish only the current version; retain history if rollback via ReaPack is needed.
 index = <<~XML
   <?xml version="1.0" encoding="utf-8"?>
@@ -29,6 +36,7 @@ index = <<~XML
       <reapack name="reaper_marker_as_key.dll" type="extension" desc="reaper_marker_as_key.dll">
         <metadata>
           <link rel="website">https://github.com/#{repository}</link>
+          <description><![CDATA[#{description}]]></description>
         </metadata>
         <version name="#{version}" author="sevenc-nanashi" time="#{timestamp}">
           <source platform="win64" file="reaper_marker_as_key.dll">#{download}/reaper_marker_as_key.dll</source>
