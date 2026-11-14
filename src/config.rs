@@ -25,10 +25,7 @@ struct Config {
 enum Scale {
     Mask(i32),
     Alias(String),
-    File {
-        path: PathBuf,
-        scale: String,
-    },
+    File { path: PathBuf, scale: String },
 }
 
 pub unsafe fn path(instance: reaper_low::raw::HINSTANCE) -> anyhow::Result<PathBuf> {
@@ -96,7 +93,7 @@ pub fn load(path: &Path) -> anyhow::Result<BTreeMap<String, i32>> {
                     Scale::Mask(mask) => break *mask,
                     Scale::Alias(target) => current = target,
                     Scale::File { path, scale } => {
-                        break read_reascale(&directory.join(path), &scale)?;
+                        break read_reascale(&directory.join(path), scale)?;
                     }
                 }
             };

@@ -8,9 +8,29 @@
 > 非公開の内部API `GetSetProjKeySig` を利用しています。
 > 将来のREAPERのアップデートで動作しなくなる可能性があります。
 
+## インストール
+
+Windows x64版REAPERに対応しています。
+
+### ReaPack
+
+`Extensions > ReaPack > Import repositories...` から次のURLを登録します。
+
+```text
+https://github.com/sevenc-nanashi/reaper_marker_as_key.dll/releases/latest/download/index.xml
+```
+
+`Browse packages...` で `reaper_marker_as_key` をインストールし、REAPERを再起動してください。
+このURLは初回リリースの公開後に利用できます。インデックスには最新リリースのみを掲載します。
+設定TOMLはDLLが初回ロード時に生成するため、ReaPackでの更新時にも既存の設定を保持します。
+
+### 手動
+
+[Releases](https://github.com/sevenc-nanashi/reaper_marker_as_key.dll/releases/latest) から
+`reaper_marker_as_key.dll` をダウンロードし、REAPERの `UserPlugins` フォルダーにコピーして再起動してください。
+
 ## 使い方
 
-- `reaper_marker_as_key.dll` を REAPER の `UserPlugins` フォルダにコピーします。
 - Marker名に「`Intro [key=C#:major]`」のように `[key=調号]` のタグを付けます。
 - アクション `reaper_marker_as_key.dll: Set project key signatures from markers` を実行するとマーカーを反映します。
 
@@ -33,6 +53,15 @@ minor = 0b010110101101
 maj = "major"
 another = { path = "scales/custom.reascale", scale = "Dorian" }
 ```
+
+## リリース手順
+
+1. `Cargo.toml` の `version` と `Cargo.lock` を更新します。
+2. 変更を取り込んだコミットに、そのバージョンと一致するタグ（例: `v0.1.0`）を付け、GitHubへ公開します。
+3. `Release` workflowがフォーマットとClippyを確認し、Windows x64用DLLをビルドします。
+4. DLL、ライセンス、ReaPackの `index.xml` を添付したGitHub Releaseが自動公開されます。
+
+通常の `GITHUB_TOKEN` を使うため、追加のシークレットは不要です。安定版の `vMAJOR.MINOR.PATCH` タグに対応します。
 
 ## ライセンス
 

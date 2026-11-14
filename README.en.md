@@ -7,9 +7,29 @@ A REAPER mod that reads tags like `[key=C#:major]` in marker names and applies t
 > [!WARNING]
 > This uses the non-public internal API `GetSetProjKeySig`. It may stop working with future REAPER updates.
 
+## Installation
+
+Windows x64 REAPER is supported.
+
+### ReaPack
+
+Use `Extensions > ReaPack > Import repositories...` to add:
+
+```text
+https://github.com/sevenc-nanashi/reaper_marker_as_key.dll/releases/latest/download/index.xml
+```
+
+Install `reaper_marker_as_key` from `Browse packages...`, then restart REAPER.
+This URL becomes available after the first release. The index lists only the latest release.
+The DLL creates the configuration TOML on first load, so ReaPack updates preserve existing settings.
+
+### Manual
+
+Download `reaper_marker_as_key.dll` from [Releases](https://github.com/sevenc-nanashi/reaper_marker_as_key.dll/releases/latest),
+copy it to REAPER's `UserPlugins` folder, and restart REAPER.
+
 ## Usage
 
-- Copy `reaper_marker_as_key.dll` to REAPER's `UserPlugins` folder.
 - Add a tag like `[key=key_signature]` to the marker name, e.g., `Intro [key=C#:major]`.
 - Run the action `reaper_marker_as_key.dll: Set project key signatures from markers` to apply the markers.
 
@@ -31,6 +51,16 @@ minor = 0b010110101101
 maj = "major"
 another = { path = "scales/custom.reascale", scale = "Dorian" }
 ```
+
+## Releasing
+
+1. Update `version` in `Cargo.toml` and update `Cargo.lock`.
+2. Tag the integrated commit with the matching version (for example, `v0.1.0`) and publish the tag to GitHub.
+3. The `Release` workflow checks formatting and Clippy, then builds the Windows x64 DLL.
+4. It publishes a GitHub Release with the DLL, license, and ReaPack `index.xml` attached.
+
+The workflow uses the standard `GITHUB_TOKEN`; no additional secrets are required.
+Only stable `vMAJOR.MINOR.PATCH` tags are supported.
 
 ## License
 

@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    env:
+      RUSTFLAGS: -C target-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@v5
+        with:
+          cache: false
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Lint
+        run: cargo clippy --locked --target x86_64-pc-windows-msvc --lib -- -D warnings
+
+      - name: Build DLL
+        run: cargo build --locked --release --target x86_64-pc-windows-msvc --lib
+
+      - name: Prepare ReaPack index
+        shell: pwsh
+        run: >-
+          ruby scripts/package.rb
+          "$env:GITHUB_REF_NAME"
+          "$env:GITHUB_REPOSITORY"
+          target/x86_64-pc-windows-msvc/release/reaper_marker_as_key.dll
+          dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          make_latest: legacy
+          fail_on_unmatched_files: true
+          files: |
+            dist/reaper_marker_as_key.dll
+            dist/index.xml
+            LICENSE
