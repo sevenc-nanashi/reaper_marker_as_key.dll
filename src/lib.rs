@@ -1,3 +1,4 @@
+mod config;
 mod key;
 mod reaper;
 
@@ -11,15 +12,19 @@ use reaper_low::{
 };
 use std::{
     cell::{Cell, RefCell},
+    collections::BTreeMap,
     ffi::{CStr, CString, c_int, c_void},
+    path::{Path, PathBuf},
     ptr::{null, null_mut},
 };
 
 const ACTION: &CStr = c"reaper_marker_as_key.dll: Set project key signatures from markers";
+const CONFIG_ACTION: &CStr = c"reaper_marker_as_key.dll: Open configuration";
 
 struct Plugin {
     api: Api,
-    gaccel: Gaccel,
+    gaccels: [Gaccel; 2],
+    config_path: PathBuf,
     running: Cell<bool>,
 }
 
@@ -35,7 +40,11 @@ struct Change {
 }
 
 impl Api {
-    unsafe fn collect_changes(&self, project: Project) -> anyhow::Result<Vec<Change>> {
+    unsafe fn collect_changes(
+        &self,
+        project: Project,
+        scales: &BTreeMap<String, i32>,
+    ) -> anyhow::Result<Vec<Change>> {
         let mut markers = Vec::new();
         for index in 0..c_int::MAX {
             let (mut region, mut position, mut end, mut name, mut number, mut color) =
@@ -56,7 +65,7 @@ impl Api {
                 break;
             }
             let name = unsafe { CStr::from_ptr(name) }.to_str()?;
-            if let Some(key) = key::parse(name)? {
+            if let Some(key) = key::parse(name, scales)? {
                 markers.push((position, key));
             }
         }
@@ -134,10 +143,11 @@ impl Api {
             .collect()
     }
 
-    unsafe fn run(&self) -> anyhow::Result<()> {
+    unsafe fn run(&self, config_path: &Path) -> anyhow::Result<()> {
+        let scales = config::load(config_path)?;
         let project = unsafe { self.public.EnumProjects(-1, null_mut(), 0) };
         anyhow::ensure!(!project.is_null(), "No project is open.");
-        let changes = unsafe { self.collect_changes(project) }?;
+        let changes = unsafe { self.collect_changes(project, &scales) }?;
         if changes.is_empty() {
             return Ok(());
         }
@@ -177,7 +187,7 @@ impl Api {
     }
 
     fn report(&self, message: &str) {
-        let message = CString::new(message).expect("error messages contain no NUL");
+        let message = CString::new(message.replace('\0', "\\0")).expect("NULs escaped");
         unsafe {
             self.public
                 .ShowMessageBox(message.as_ptr(), ACTION.as_ptr(), 0);
@@ -191,15 +201,23 @@ unsafe extern "C" fn hook_command(command: c_int, _: c_int) -> bool {
         let Some(plugin) = slot.as_ref() else {
             return false;
         };
-        if command != c_int::from(plugin.gaccel.accel.cmd) {
+        let Some(index) = plugin
+            .gaccels
+            .iter()
+            .position(|gaccel| command == c_int::from(gaccel.accel.cmd))
+        else {
             return false;
-        }
+        };
         if plugin.running.replace(true) {
             return true;
         }
-        let result = unsafe { plugin.api.run() };
+        let result = match index {
+            0 => unsafe { plugin.api.run(&plugin.config_path) },
+            1 => config::open(&plugin.config_path),
+            _ => unreachable!("registered action index"),
+        };
         if let Err(error) = result {
-            plugin.api.report(&format!("Error: {error}"));
+            plugin.api.report(&format!("Error: {error:#}"));
         }
         plugin.running.set(false);
         true
@@ -223,10 +241,12 @@ unsafe fn entry(instance: HINSTANCE, info: *mut PluginInfo) -> c_int {
                         .api
                         .public
                         .plugin_register(c"-hookcommand".as_ptr(), hook_command as *mut c_void);
-                    plugin.api.public.plugin_register(
-                        c"-gaccel".as_ptr(),
-                        (&mut plugin.gaccel as *mut Gaccel).cast(),
-                    );
+                    for gaccel in &mut plugin.gaccels {
+                        plugin
+                            .api
+                            .public
+                            .plugin_register(c"-gaccel".as_ptr(), (gaccel as *mut Gaccel).cast());
+                    }
                 }
             }
             return 0;
@@ -250,35 +270,60 @@ unsafe fn entry(instance: HINSTANCE, info: *mut PluginInfo) -> c_int {
         let Some(api) = (unsafe { Api::load(context) }) else {
             return 0;
         };
+        let config_path = match unsafe { config::path(instance) } {
+            Ok(path) => path,
+            Err(error) => {
+                api.report(&format!("Error: {error:#}"));
+                return 0;
+            }
+        };
+        if let Err(error) = config::ensure_file(&config_path) {
+            api.report(&format!("Error: {error:#}"));
+        }
         let public = api.public;
-        let command = unsafe {
-            public.plugin_register(
-                c"command_id".as_ptr(),
-                c"SNMarkerAsKey".as_ptr().cast_mut().cast(),
-            )
-        };
-        let Ok(command @ 1..) = u16::try_from(command) else {
-            return 0;
-        };
-        let mut plugin = Box::new(Plugin {
-            api,
-            gaccel: Gaccel {
+        let mut gaccels = [Gaccel::default(); 2];
+        for (gaccel, (id, description)) in gaccels.iter_mut().zip([
+            (c"SNMarkerAsKey", ACTION),
+            (c"SNMarkerAsKeyConfig", CONFIG_ACTION),
+        ]) {
+            let command = unsafe {
+                public.plugin_register(c"command_id".as_ptr(), id.as_ptr().cast_mut().cast())
+            };
+            let Ok(command @ 1..) = u16::try_from(command) else {
+                return 0;
+            };
+            *gaccel = Gaccel {
                 accel: Accel {
                     fVirt: 0,
                     key: 0,
                     cmd: command,
                 },
-                desc: ACTION.as_ptr(),
-            },
+                desc: description.as_ptr(),
+            };
+        }
+        let mut plugin = Box::new(Plugin {
+            api,
+            gaccels,
+            config_path,
             running: Cell::new(false),
         });
-        let gaccel = (&mut plugin.gaccel as *mut Gaccel).cast();
         unsafe {
-            if public.plugin_register(c"gaccel".as_ptr(), gaccel) == 0 {
-                return 0;
+            for index in 0..plugin.gaccels.len() {
+                if public.plugin_register(
+                    c"gaccel".as_ptr(),
+                    (&mut plugin.gaccels[index] as *mut Gaccel).cast(),
+                ) == 0
+                {
+                    for gaccel in &mut plugin.gaccels[..index] {
+                        public.plugin_register(c"-gaccel".as_ptr(), (gaccel as *mut Gaccel).cast());
+                    }
+                    return 0;
+                }
             }
             if public.plugin_register(c"hookcommand".as_ptr(), hook_command as *mut c_void) == 0 {
-                public.plugin_register(c"-gaccel".as_ptr(), gaccel);
+                for gaccel in &mut plugin.gaccels {
+                    public.plugin_register(c"-gaccel".as_ptr(), (gaccel as *mut Gaccel).cast());
+                }
                 return 0;
             }
         }

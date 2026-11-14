@@ -280,6 +280,9 @@ dependencies = [
  "hooq",
  "reaper-low",
  "regex",
+ "serde",
+ "toml",
+ "winapi",
 ]
 
 [[package]]

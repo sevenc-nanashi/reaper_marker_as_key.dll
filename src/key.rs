@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::sync::LazyLock;
+use std::{collections::BTreeMap, sync::LazyLock};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Key {
@@ -9,9 +9,9 @@ pub struct Key {
 }
 
 #[hooq::hooq(anyhow)]
-pub fn parse(name: &str) -> anyhow::Result<Option<Key>> {
+pub fn parse(name: &str, scales: &BTreeMap<String, i32>) -> anyhow::Result<Option<Key>> {
     static TAG: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"\A\[key=([A-G])([#b]?):(major|minor)\]").expect("valid key tag pattern")
+        Regex::new(r"\A\[key=([A-G])([#b]?):([^\]\r\n]+)\]").expect("valid key tag pattern")
     });
     let Some(start) = name.find("[key=") else {
         return Ok(None);
@@ -34,14 +34,30 @@ pub fn parse(name: &str) -> anyhow::Result<Option<Key>> {
         "b" => -7,
         _ => 0,
     };
-    let minor = i8::from(&captures[3] == "minor");
-    fifths -= minor * 3;
-    if !(-7..=7).contains(&fifths) {
+    let scale = *scales
+        .get(&captures[3])
+        .ok_or_else(|| anyhow::anyhow!("Unknown scale: {}", &captures[3]))?;
+    let root = (fifths * 7).rem_euclid(12);
+    let signature_offset = match scale {
+        0xAD5 => 1,
+        0x6AD => -2,
+        0x5AB => -4,
+        0x6B5 => -1,
+        0x5AD | 0x9AD | 0xAAD | 0x4A9 | 0x4E9 => -3,
+        0x56B => -5,
+        _ => 0,
+    };
+    fifths += signature_offset;
+    if matches!(scale, 0xAB5 | 0x5AD) && !(-7..=7).contains(&fifths) {
         anyhow::bail!("Key signature out of range: {name}");
     }
     Ok(Some(Key {
-        root: (fifths * 7 + minor * 9).rem_euclid(12),
-        accidental: fifths.signum(),
-        scale: if minor == 1 { 0x5AD } else { 0xAB5 },
+        root,
+        accidental: match &captures[2] {
+            "#" => 1,
+            "b" => -1,
+            _ => fifths.signum(),
+        },
+        scale,
     }))
 }

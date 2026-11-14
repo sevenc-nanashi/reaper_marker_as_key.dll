@@ -13,3 +13,6 @@ anyhow = "1.0.104"
 hooq = "0.3.1"
 reaper-low = { git = "https://github.com/helgoboss/reaper-rs.git", rev = "bd7cbb0b83f8f84c0f325557be0ca16bca458b14" }
 regex = { version = "1.12", default-features = false, features = ["std", "perf"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+winapi = { version = "0.3", features = ["libloaderapi"] }

@@ -1,0 +1,31 @@
+# Default settings for reaper_marker_as_key.dll.
+# Check https://github.com/sevenc-nanashi/reaper_marker_as_key.dll for more information.
+
+[scales]
+major = 0b101010110101
+minor = 0b010110101101
+ionian = "major"
+aeolian = "minor"
+dorian = 0b011010101101
+phrygian = 0b010110101011
+lydian = 0b101011010101
+mixolydian = 0b011010110101
+locrian = 0b010101101011
+harmonic_minor = 0b100110101101
+melodic_minor = 0b101010101101
+major_pentatonic = 0b001010010101
+minor_pentatonic = 0b010010101001
+blues = 0b010011101001
+whole_tone = 0b010101010101
+chromatic = 0b111111111111
+
+# Abbreviations
+maj = "major"
+min = "minor"
+hmin = "harmonic_minor"
+mmin = "melodic_minor"
+maj5 = "major_pentatonic"
+min5 = "minor_pentatonic"
+
+# Paths are relative to this TOML file (absolute paths also work).
+# another = { path = "scales/custom.reascale", scale = "Dorian" }
