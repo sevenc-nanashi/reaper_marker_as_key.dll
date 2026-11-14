@@ -32,6 +32,7 @@ impl Api {
         functions.MIDIEditor_GetTake?;
         functions.MIDI_RefreshEditors?;
         functions.ShowMessageBox?;
+        functions.Help_Set?;
         Some(Self {
             public,
             key_signature: unsafe {

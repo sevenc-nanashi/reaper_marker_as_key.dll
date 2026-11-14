@@ -33,6 +33,7 @@ https://github.com/sevenc-nanashi/reaper_marker_as_key.dll/releases/latest/downl
 
 - Marker名に「`Intro [key=C#:major]`」のように `[key=調号]` のタグを付けます。
 - アクション `reaper_marker_as_key.dll: Set project key signatures from markers` を実行するとマーカーを反映します。
+- 既存のプロジェクト調号は、手動で設定したものも含めてすべて削除し、マーカーから再作成されます。
 
 ## 設定
 

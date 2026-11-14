@@ -32,6 +32,7 @@ copy it to REAPER's `UserPlugins` folder, and restart REAPER.
 
 - Add a tag like `[key=key_signature]` to the marker name, e.g., `Intro [key=C#:major]`.
 - Run the action `reaper_marker_as_key.dll: Set project key signatures from markers` to apply the markers.
+- All existing project key signatures, including manually added ones, will be removed and recreated from the tags.
 
 ## Configuration
 

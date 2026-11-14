@@ -35,7 +35,7 @@ thread_local! {
 
 struct Change {
     position: f64,
-    key: Key,
+    key: Option<Key>,
     previous: Option<Key>,
 }
 
@@ -74,28 +74,41 @@ impl Api {
             anyhow::bail!("Multiple key markers at the same position.");
         }
         let mut changes = Vec::new();
-        for (time, key) in markers {
-            let position = unsafe { self.public.TimeMap2_timeToQN(project, time) };
-            let mut previous_position = position;
+        // The API returns the last key signature at or before the requested position.
+        let mut position = f64::MAX;
+        loop {
+            let upper_bound = position;
             let mut previous = Key::default();
             let exists = unsafe {
                 (self.key_signature)(
                     project,
-                    &mut previous_position,
+                    &mut position,
                     &mut previous.root,
                     &mut previous.accidental,
                     &mut previous.scale,
                     false,
                 )
             };
-            let previous = (exists && previous_position == position).then_some(previous);
-            if previous != Some(key) {
-                changes.push(Change {
-                    position,
-                    key,
-                    previous,
-                });
+            if !exists {
+                break;
             }
+            anyhow::ensure!(
+                position.is_finite() && position <= upper_bound,
+                "Could not enumerate existing key signatures."
+            );
+            changes.push(Change {
+                position,
+                key: None,
+                previous: Some(previous),
+            });
+            position = position.next_down();
+        }
+        for (time, key) in markers {
+            changes.push(Change {
+                position: unsafe { self.public.TimeMap2_timeToQN(project, time) },
+                key: Some(key),
+                previous: None,
+            });
         }
         Ok(changes)
     }
@@ -123,24 +136,25 @@ impl Api {
         }
     }
 
-    unsafe fn apply_changes(
-        &self,
-        project: Project,
-        changes: &[Change],
-    ) -> Vec<anyhow::Result<()>> {
-        changes
-            .iter()
-            .map(|change| {
-                if unsafe { self.set_key(project, change.position, Some(change.key)) } {
-                    Ok(())
-                } else {
-                    Err(anyhow::anyhow!(
-                        "Could not set key signature at position {}.",
-                        change.position
-                    ))
+    unsafe fn apply_changes(&self, project: Project, changes: &[Change]) -> anyhow::Result<()> {
+        for (index, change) in changes.iter().enumerate() {
+            if !unsafe { self.set_key(project, change.position, change.key) } {
+                let mut restored = true;
+                for change in changes[..=index].iter().rev() {
+                    restored &= unsafe { self.set_key(project, change.position, change.previous) };
                 }
-            })
-            .collect()
+                anyhow::ensure!(
+                    restored,
+                    "Could not replace key signatures at position {}. Restoring the original key signatures also failed; use Undo to recover.",
+                    change.position
+                );
+                anyhow::bail!(
+                    "Could not replace key signatures at position {}. Original key signatures were restored.",
+                    change.position
+                );
+            }
+        }
+        Ok(())
     }
 
     unsafe fn run(&self, config_path: &Path) -> anyhow::Result<()> {
@@ -149,18 +163,16 @@ impl Api {
         anyhow::ensure!(!project.is_null(), "No project is open.");
         let changes = unsafe { self.collect_changes(project, &scales) }?;
         if changes.is_empty() {
+            unsafe {
+                self.public
+                    .Help_Set(c"No key signature changes needed".as_ptr(), true);
+            }
             return Ok(());
         }
 
         unsafe { self.public.Undo_BeginBlock2(project) };
 
         let result = unsafe { self.apply_changes(project, &changes) };
-        let mut restored = true;
-        for (change, result) in changes.iter().zip(&result) {
-            if result.is_err() {
-                restored &= unsafe { self.set_key(project, change.position, change.previous) };
-            }
-        }
         unsafe {
             self.public.MarkProjectDirty(project);
             self.public.Undo_EndBlock2(project, ACTION.as_ptr(), -1);
@@ -173,15 +185,16 @@ impl Api {
                 }
             }
         }
-        let errors: Vec<String> = result
-            .into_iter()
-            .filter_map(|result| result.err().map(|error| error.to_string()))
-            .collect();
-        if !errors.is_empty() {
-            anyhow::bail!("{} errors occurred:\n{}", errors.len(), errors.join("\n"));
-        }
-        if !restored {
-            anyhow::bail!("Some changes could not be restored after an error.");
+        result?;
+        let applied = changes.iter().filter(|change| change.key.is_some()).count();
+        let message = format!(
+            "Removed {} key signatures and applied {} from markers.",
+            changes.len() - applied,
+            applied
+        );
+        unsafe {
+            let message = CString::new(message)?;
+            self.public.Help_Set(message.as_ptr(), true);
         }
         Ok(())
     }
