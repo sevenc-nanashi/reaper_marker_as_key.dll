@@ -26,7 +26,7 @@ index = <<~XML
   <?xml version="1.0" encoding="utf-8"?>
   <index version="1" name="reaper_marker_as_key.dll">
     <category name="Extensions">
-      <reapack name="reaper_marker_as_key.dll" type="extension" desc="Set project key signatures from markers">
+      <reapack name="reaper_marker_as_key.dll" type="extension" desc="reaper_marker_as_key.dll">
         <metadata>
           <link rel="website">https://github.com/#{repository}</link>
         </metadata>
