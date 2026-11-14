@@ -270,7 +270,7 @@ unsafe fn entry(instance: HINSTANCE, info: *mut PluginInfo) -> c_int {
         let Some(api) = (unsafe { Api::load(context) }) else {
             return 0;
         };
-        let config_path = match unsafe { config::path(instance) } {
+        let config_path = match config::path() {
             Ok(path) => path,
             Err(error) => {
                 api.report(&format!("Error: {error:#}"));

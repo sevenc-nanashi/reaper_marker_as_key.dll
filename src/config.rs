@@ -3,10 +3,8 @@ use regex::Regex;
 use serde::Deserialize;
 use std::{
     collections::{BTreeMap, BTreeSet},
-    ffi::OsString,
     fs::{self, OpenOptions},
     io::{ErrorKind, Write},
-    os::windows::ffi::OsStringExt,
     path::{Path, PathBuf},
     process::Command,
     sync::LazyLock,
@@ -28,20 +26,10 @@ enum Scale {
     File { path: PathBuf, scale: String },
 }
 
-pub unsafe fn path(instance: reaper_low::raw::HINSTANCE) -> anyhow::Result<PathBuf> {
-    let mut buffer = vec![0u16; 32768];
-    let length = unsafe {
-        winapi::um::libloaderapi::GetModuleFileNameW(
-            instance.cast(),
-            buffer.as_mut_ptr(),
-            buffer.len() as u32,
-        )
-    } as usize;
-    if length == 0 {
-        return Err(std::io::Error::last_os_error().into());
-    }
-    ensure!(length < buffer.len(), "DLL path is too long");
-    Ok(PathBuf::from(OsString::from_wide(&buffer[..length])).with_extension("toml"))
+pub fn path() -> anyhow::Result<PathBuf> {
+    Ok(process_path::get_dylib_path()
+        .context("Could not determine DLL path")?
+        .with_extension("toml"))
 }
 
 pub fn ensure_file(path: &Path) -> anyhow::Result<()> {
