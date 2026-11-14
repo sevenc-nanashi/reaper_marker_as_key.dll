@@ -52,16 +52,6 @@ maj = "major"
 another = { path = "scales/custom.reascale", scale = "Dorian" }
 ```
 
-## Releasing
-
-1. Update `version` in `Cargo.toml` and update `Cargo.lock`.
-2. Tag the integrated commit with the matching version (for example, `v0.1.0`) and publish the tag to GitHub.
-3. The `Release` workflow checks formatting and Clippy, then builds the Windows x64 DLL.
-4. It publishes a GitHub Release with the DLL, license, and ReaPack `index.xml` attached.
-
-The workflow uses the standard `GITHUB_TOKEN`; no additional secrets are required.
-Only stable `vMAJOR.MINOR.PATCH` tags are supported.
-
 ## License
 
 This mod is released under the MIT License.

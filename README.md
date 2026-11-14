@@ -54,15 +54,6 @@ maj = "major"
 another = { path = "scales/custom.reascale", scale = "Dorian" }
 ```
 
-## リリース手順
-
-1. `Cargo.toml` の `version` と `Cargo.lock` を更新します。
-2. 変更を取り込んだコミットに、そのバージョンと一致するタグ（例: `v0.1.0`）を付け、GitHubへ公開します。
-3. `Release` workflowがフォーマットとClippyを確認し、Windows x64用DLLをビルドします。
-4. DLL、ライセンス、ReaPackの `index.xml` を添付したGitHub Releaseが自動公開されます。
-
-通常の `GITHUB_TOKEN` を使うため、追加のシークレットは不要です。安定版の `vMAJOR.MINOR.PATCH` タグに対応します。
-
 ## ライセンス
 
 このMODはMITライセンスの下で公開されています。
