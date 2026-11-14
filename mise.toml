@@ -3,4 +3,5 @@
 ruby = "3.4.8"
 
 [settings]
+lockfile = false
 idiomatic_version_file_enable_tools = ["rust"]
