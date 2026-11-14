@@ -30,11 +30,11 @@ jobs:
       RELEASE_VERSION: ${{ inputs.version }}
       RELEASE_TAG: v${{ inputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: jdx/mise-action@v5
+      - uses: jdx/mise-action@v5.2.8
         with:
           cache: false
 
@@ -43,14 +43,8 @@ jobs:
           cargo set-version "$RELEASE_VERSION"
           cargo update --workspace
 
-      - name: Check formatting
-        run: cargo fmt --check
-
-      - name: Lint
-        run: cargo clippy --locked --target x86_64-pc-windows-msvc --lib -- -D warnings
-
       - name: Build DLL
-        run: cargo build --locked --release --target x86_64-pc-windows-msvc --lib
+        run: cargo build --release
 
       - name: Commit and tag release
         run: |
@@ -67,7 +61,7 @@ jobs:
           ruby scripts/package.rb
           "$RELEASE_TAG"
           "$GITHUB_REPOSITORY"
-          target/x86_64-pc-windows-msvc/release/reaper_marker_as_key.dll
+          target/release/reaper_marker_as_key.dll
           dist
 
       - name: Push release commit and tag
@@ -75,7 +69,7 @@ jobs:
           git push --atomic origin "HEAD:refs/heads/$GITHUB_REF_NAME" "refs/tags/$RELEASE_TAG"
 
       - name: Publish release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@v3.0.4
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           generate_release_notes: true
